@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1>EcoWeather 🌱</h1>
+
+<input id="city" placeholder="Enter city">
+<button onclick="getWeather()">Get Weather</button>
+
+<p id="result"></p>
+
+<script>
+const API_URL = "PASTE_API_URL_HERE";
+
+async function getWeather() {
+  const city = document.getElementById("city").value;
+
+  const res = await fetch(API_URL + "?city=" + city);
+  const data = await res.json();
+
+  document.getElementById("result").innerText =
+    data.temperature + "°C, " + data.condition;
+}
+</script>
+
+</body>
+</html>
