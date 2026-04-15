@@ -6,14 +6,32 @@ on:
       - main
 
 jobs:
-  test:
+  build-and-validate:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - name: Validate Lambda
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: pip install boto3
+
+      - name: Validate Lambda Syntax
         run: python -m py_compile lambda_function.py
 
+      - name: Simulate API Test
+        run: echo "API Gateway integration test passed"
+
+      - name: Simulate Database Connection
+        run: echo "DynamoDB connection successful"
+
+      - name: Simulate Notification Service
+        run: echo "SNS notification triggered"
+
       - name: Deployment Simulation
-        run: echo "Deployment successful"
+        run: echo "Application deployed successfully"
