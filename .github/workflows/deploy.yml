@@ -1,0 +1,19 @@
+name: EcoWeather CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Validate Lambda
+        run: python -m py_compile lambda_function.py
+
+      - name: Deployment Simulation
+        run: echo "Deployment successful"
