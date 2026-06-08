@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EcoWeather Cloud</title>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Segoe UI", sans-serif;
+}
+
+body {
+    height: 100vh;
+    background: linear-gradient(135deg, #4facfe, #00f2fe);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+}
+
+.container {
+    backdrop-filter: blur(15px);
+    background: rgba(255,255,255,0.15);
+    padding: 40px;
+    border-radius: 20px;
+    width: 350px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+h1 {
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    font-size: 14px;
+    opacity: 0.8;
+    margin-bottom: 20px;
+}
+
+input {
+    width: 80%;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    outline: none;
+}
+
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #28a745;
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: #218838;
+}
+
+.weather-card {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.2);
+}
+
+.loading {
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+.footer {
+    margin-top: 20px;
+    font-size: 12px;
+    opacity: 0.7;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>🌍 EcoWeather</h1>
+    <div class="subtitle">Serverless • Energy Efficient • Climate Action 🌱</div>
+
+    <input type="text" id="city" placeholder="Enter city (e.g. London)">
+    <br>
+    <button onclick="getWeather()">Get Weather</button>
+
+    <div class="loading" id="loading"></div>
+
+    <div class="weather-card" id="result" style="display:none;"></div>
+
+    <div class="footer">
+        Built using AWS Serverless Architecture
+    </div>
+</div>
+
+<script>
+async function getWeather() {
+
+    const city = document.getElementById("city").value || "London";
+    const loading = document.getElementById("loading");
+    const result = document.getElementById("result");
+
+    loading.innerText = "Fetching weather...";
+    result.style.display = "none";
+
+    try {
+        const response = await fetch("https://55d34chf30.execute-api.us-east-1.amazonaws.com/prod/weather?city=" + city);
+
+        const data = await response.json();
+
+        console.log(data); // DEBUG
+
+        loading.innerText = "";
+
+        // ❗ FIX FOR UNDEFINED
+        if (data.error) {
+            result.style.display = "block";
+            result.innerHTML = "❌ " + data.error;
+            return;
+        }
+
+        result.style.display = "block";
+        result.innerHTML = `
+            <h2>${data.city}</h2>
+            <p style="font-size:30px;">🌡️ ${data.temperature}°C</p>
+            <p>Real-time weather data</p>
+        `;
+
+    } catch (error) {
+        loading.innerText = "❌ Error fetching weather";
+    }
+}
+</script>
+
+</body>
+</html>
