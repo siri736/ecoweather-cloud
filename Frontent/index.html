@@ -1,696 +1,848 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EcoWeather Cloud</title>
-
+ 
+<!-- Fonts: Space Grotesk (display) + Inter (body) + JetBrains Mono (data/telemetry) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+ 
 <style>
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-font-family:"Segoe UI",sans-serif;
+/* ============================================================
+   ECOWEATHER CLOUD — DESIGN TOKENS
+   Palette:
+     --bg-deep   #0B1F2A  (atmospheric night-teal, the "cloud sky")
+     --bg-mid    #123244
+     --accent-eco #21C98A (sustainability green)
+     --accent-sky #3FA9F5 (cloud / serverless blue)
+     --accent-sun #FFB454 (warm weather accent)
+     --glass     rgba(255,255,255,0.06) card surfaces
+   Type: Space Grotesk (display/headlines) + Inter (body/UI) + JetBrains Mono (telemetry numbers)
+   ============================================================ */
+:root{
+  --bg-deep:#0B1F2A;
+  --bg-mid:#123244;
+  --accent-eco:#21C98A;
+  --accent-sky:#3FA9F5;
+  --accent-sun:#FFB454;
+  --accent-storm:#8B7CFF;
+  --glass:rgba(255,255,255,0.06);
+  --glass-border:rgba(255,255,255,0.14);
+  --text-hi:#EAF3F6;
+  --text-lo:#9FB3BE;
+  --font-display:'Space Grotesk',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
 }
-
-body{
-background:#f3f5f8;
-color:#132238;
-overflow-x:hidden;
+ 
+*{margin:0;padding:0;box-sizing:border-box;}
+ 
+html,body{
+  min-height:100vh;
+  background:var(--bg-deep);
+  color:var(--text-hi);
+  font-family:var(--font-body);
+  overflow-x:hidden;
 }
-
+ 
+@media (prefers-reduced-motion:reduce){
+  *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+}
+ 
+h1,h2,h3,h4{ font-family:var(--font-display); letter-spacing:-0.01em; }
+ 
+::selection{ background:var(--accent-eco); color:#04140e; }
+ 
+/* ============================================================
+   WEATHER-REACTIVE SKY LAYER (fixed, behind everything)
+   ============================================================ */
+.sky-layer{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  overflow:hidden;
+  transition:background 1.4s ease;
+  background:linear-gradient(160deg,#0B1F2A 0%,#123244 55%,#0d2836 100%);
+}
+ 
+body.theme-sun .sky-layer{ background:linear-gradient(160deg,#3a2a0f 0%,#5a3d12 45%,#1c2436 100%); }
+body.theme-cloud .sky-layer{ background:linear-gradient(160deg,#16222c 0%,#26384a 55%,#101c26 100%); }
+body.theme-rain .sky-layer{ background:linear-gradient(160deg,#0a1922 0%,#122d3d 55%,#0a1922 100%); }
+body.theme-storm .sky-layer{ background:linear-gradient(160deg,#0a0e18 0%,#171226 55%,#0a0e18 100%); }
+body.theme-snow .sky-layer{ background:linear-gradient(160deg,#1a2530 0%,#2c3e4d 55%,#141d24 100%); }
+ 
+.sky-glow{
+  position:absolute;
+  width:600px;height:600px;
+  border-radius:50%;
+  top:-180px; right:-120px;
+  background:radial-gradient(circle,rgba(63,169,245,0.20),transparent 70%);
+  filter:blur(10px);
+  transition:background 1.4s ease;
+}
+body.theme-sun .sky-glow{ background:radial-gradient(circle,rgba(255,180,84,0.35),transparent 70%); }
+body.theme-storm .sky-glow{ background:radial-gradient(circle,rgba(139,124,255,0.25),transparent 70%); }
+ 
+.sky-particle{ position:absolute; pointer-events:none; will-change:transform,opacity; }
+ 
+.p-rain{ width:2px; height:70px; background:linear-gradient(to bottom,transparent,rgba(160,210,255,0.55)); border-radius:2px; animation:fallRain linear forwards; }
+@keyframes fallRain{ from{ transform:translateY(-80px); opacity:0;} 8%{opacity:1;} to{ transform:translateY(110vh); opacity:0.2; } }
+ 
+.p-snow{ width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.85); box-shadow:0 0 6px rgba(255,255,255,0.6); animation:fallSnow linear forwards; }
+@keyframes fallSnow{ from{ transform:translateY(-20px) translateX(0) rotate(0deg); opacity:0.9;} to{ transform:translateY(110vh) translateX(40px) rotate(360deg); opacity:0.4; } }
+ 
+.p-sun{ width:8px;height:8px;border-radius:50%; background:radial-gradient(circle,#ffe3ab,#ffb454); box-shadow:0 0 10px #ffb454; animation:floatSun 6s ease-in-out infinite; }
+@keyframes floatSun{ 0%,100%{ transform:translateY(0) scale(1); opacity:0.7;} 50%{ transform:translateY(-30px) scale(1.3); opacity:1;} }
+ 
+.p-cloud{ width:220px;height:70px; border-radius:50px; background:rgba(255,255,255,0.05); filter:blur(2px); animation:driftCloud linear infinite; }
+@keyframes driftCloud{ from{ transform:translateX(-260px);} to{ transform:translateX(110vw);} }
+ 
+.lightning-flash{
+  position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:1;
+}
+.lightning-flash.flash{ animation:flashBolt 380ms ease-out; }
+@keyframes flashBolt{ 0%{opacity:0;} 8%{opacity:0.85;} 18%{opacity:0.1;} 30%{opacity:0.6;} 45%{opacity:0;} 100%{opacity:0;} }
+ 
+/* ============================================================
+   SPLASH / CINEMATIC INTRO
+   ============================================================ */
+.splash{
+  position:fixed; inset:0; z-index:100;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:radial-gradient(circle at 50% 40%,#123244 0%,#0B1F2A 70%,#050d12 100%);
+  transition:opacity 0.9s ease, visibility 0.9s ease;
+}
+.splash.splash-hide{ opacity:0; visibility:hidden; pointer-events:none; }
+ 
+.orb-wrap{ position:relative; width:220px; height:220px; margin-bottom:46px; }
+ 
+.orb-particle{
+  position:absolute; top:50%; left:50%; width:8px; height:8px; border-radius:50%;
+  background:var(--accent-eco);
+  box-shadow:0 0 12px var(--accent-eco);
+  opacity:0;
+  animation:convergeParticle 1.6s cubic-bezier(.2,.8,.2,1) forwards;
+}
+@keyframes convergeParticle{
+  0%{ transform:translate(var(--sx),var(--sy)) scale(0.3); opacity:0; }
+  60%{ opacity:1; }
+  100%{ transform:translate(var(--ex),var(--ey)) scale(1); opacity:0.9; }
+}
+ 
+.orb-core{
+  position:absolute; inset:0; margin:auto; width:110px; height:110px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#3fa9f5,#123244 70%);
+  box-shadow:0 0 60px rgba(63,169,245,0.55), inset 0 0 30px rgba(255,255,255,0.15);
+  opacity:0; animation:coreAppear 1.2s ease 1.1s forwards, coreFloat 4s ease-in-out 2.3s infinite;
+}
+@keyframes coreAppear{ to{ opacity:1; } }
+@keyframes coreFloat{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-10px);} }
+ 
+.orb-ring{
+  position:absolute; inset:0; margin:auto; width:180px; height:180px; border-radius:50%;
+  border:1px solid rgba(33,201,138,0.35);
+  opacity:0; animation:ringAppear 1s ease 1.5s forwards, ringSpin 12s linear 2.5s infinite;
+}
+@keyframes ringAppear{ to{ opacity:1;} }
+@keyframes ringSpin{ from{ transform:rotate(0deg);} to{ transform:rotate(360deg);} }
+ 
+.splash-text{ text-align:center; }
+.splash-line{
+  opacity:0; transform:translateY(16px);
+  animation:lineUp 0.8s ease forwards;
+  font-family:var(--font-display);
+}
+.splash-line.l1{ font-size:34px; font-weight:700; animation-delay:1.9s; letter-spacing:0.02em; }
+.splash-line.l2{ font-size:15px; font-weight:500; color:var(--accent-sky); margin-top:10px; animation-delay:2.3s; font-family:var(--font-body); }
+.splash-line.l3{ font-size:13px; color:var(--text-lo); margin-top:6px; animation-delay:2.6s; font-family:var(--font-body); }
+.splash-line.l4{ font-size:13px; color:var(--accent-eco); margin-top:6px; animation-delay:2.9s; font-family:var(--font-body); }
+@keyframes lineUp{ to{ opacity:1; transform:translateY(0);} }
+ 
+/* ============================================================
+   APP SHELL
+   ============================================================ */
 .app{
-display:flex;
-min-height:100vh;
+  position:relative; z-index:2;
+  display:flex; min-height:100vh;
+  opacity:0; transform:translateY(14px) scale(0.99);
+  transition:opacity 1s ease 0.15s, transform 1s ease 0.15s;
 }
-
+.app.app-visible{ opacity:1; transform:translateY(0) scale(1); }
+ 
 /* SIDEBAR */
-
 .sidebar{
-width:85px;
-background:#006b4f;
-display:flex;
-flex-direction:column;
-align-items:center;
-padding-top:25px;
-gap:30px;
-color:white;
+  width:92px;
+  background:rgba(11,31,42,0.55);
+  backdrop-filter:blur(18px);
+  border-right:1px solid var(--glass-border);
+  display:flex; flex-direction:column; align-items:center; padding-top:28px; gap:26px;
 }
-
-.logo{
-width:55px;
-height:55px;
-background:#0fa979;
-border-radius:18px;
-display:flex;
-justify-content:center;
-align-items:center;
-font-size:28px;
+.logo-mini{
+  width:52px; height:52px; border-radius:16px;
+  background:linear-gradient(135deg,var(--accent-eco),var(--accent-sky));
+  display:flex; align-items:center; justify-content:center; font-size:24px;
+  box-shadow:0 6px 20px rgba(33,201,138,0.35);
 }
-
-.menu{
-display:flex;
-flex-direction:column;
-gap:22px;
-margin-top:20px;
-}
-
+.menu{ display:flex; flex-direction:column; gap:18px; margin-top:14px; width:100%; align-items:center; }
 .menu-item{
-display:flex;
-flex-direction:column;
-align-items:center;
-justify-content:center;
-width:65px;
-height:65px;
-border-radius:15px;
-font-size:11px;
-cursor:pointer;
-gap:6px;
-transition:0.3s;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  width:68px; height:64px; border-radius:16px; font-size:10.5px; letter-spacing:0.02em;
+  cursor:pointer; gap:6px; color:var(--text-lo);
+  transition:background 0.25s ease, color 0.25s ease, transform 0.25s ease;
 }
-
+.menu-item .icon{ font-size:21px; }
+.menu-item:hover{ background:var(--glass); transform:translateY(-2px); color:var(--text-hi); }
 .menu-item.active{
-background:white;
-color:#006b4f;
+  background:linear-gradient(160deg,rgba(33,201,138,0.22),rgba(63,169,245,0.14));
+  color:var(--text-hi);
+  box-shadow:0 0 0 1px var(--glass-border) inset;
 }
-
-.menu-item:hover{
-background:rgba(255,255,255,0.15);
-}
-
-.icon{
-font-size:24px;
-}
-
-/* MAIN CONTENT */
-
-.main{
-flex:1;
-}
-
-/* HERO */
-
-.hero{
-background:linear-gradient(135deg,#9099a8,#66758b);
-padding:40px 70px;
-color:white;
-}
-
-.search-container{
-display:flex;
-justify-content:center;
-margin-bottom:50px;
-}
-
+ 
+/* MAIN */
+.main{ flex:1; min-width:0; }
+ 
+.hero{ padding:44px 56px 30px; }
+ 
+.search-container{ display:flex; justify-content:center; margin-bottom:40px; }
 .search-box{
-width:700px;
-height:60px;
-border:none;
-border-radius:18px;
-padding:0 25px;
-font-size:18px;
-outline:none;
-box-shadow:0 8px 20px rgba(0,0,0,0.15);
+  width:640px; max-width:100%; height:56px;
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(14px);
+  border-radius:18px; padding:0 22px; font-size:16px; color:var(--text-hi);
+  outline:none; font-family:var(--font-body);
+  box-shadow:0 10px 30px rgba(0,0,0,0.25);
+  transition:border-color 0.25s ease, box-shadow 0.25s ease;
 }
-
-.top-section{
-display:flex;
-justify-content:space-between;
-align-items:flex-start;
+.search-box::placeholder{ color:var(--text-lo); }
+.search-box:focus{ border-color:var(--accent-eco); box-shadow:0 10px 30px rgba(33,201,138,0.2); }
+ 
+.top-section{ display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap; }
+ 
+.current-card{
+  flex:1; min-width:280px;
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(16px);
+  border-radius:26px;
+  padding:34px 38px;
+  position:relative; overflow:hidden;
+  box-shadow:0 20px 50px rgba(0,0,0,0.3);
 }
-
-.location{
-font-size:24px;
-margin-bottom:18px;
+ 
+.location{ font-size:15px; color:var(--text-lo); letter-spacing:0.02em; margin-bottom:6px; }
+ 
+.temp-row{ display:flex; align-items:center; gap:26px; }
+.temperature{ font-family:var(--font-mono); font-size:96px; font-weight:500; line-height:1; }
+.temperature sup{ font-size:40px; vertical-align:top; color:var(--accent-sky); }
+ 
+/* ANIMATED WEATHER ICON */
+.weather-icon{ position:relative; width:96px; height:96px; flex-shrink:0; }
+.wi-sun-core{ position:absolute; inset:0; margin:auto; width:46px; height:46px; border-radius:50%; background:radial-gradient(circle,#fff3d6,var(--accent-sun)); box-shadow:0 0 30px var(--accent-sun); }
+.wi-sun-rays{ position:absolute; inset:0; animation:spinSlow 14s linear infinite; }
+.wi-sun-rays::before,.wi-sun-rays::after{
+  content:''; position:absolute; inset:0; margin:auto;
+  width:4px; height:96px; left:calc(50% - 2px);
+  background:repeating-linear-gradient(0deg,var(--accent-sun) 0 8px, transparent 8px 20px);
+  opacity:0.7;
 }
-
-.temperature{
-font-size:100px;
-font-weight:300;
+.wi-sun-rays::after{ transform:rotate(45deg); }
+@keyframes spinSlow{ from{transform:rotate(0);} to{transform:rotate(360deg);} }
+ 
+.wi-cloud{ position:absolute; width:64px; height:34px; border-radius:30px; background:linear-gradient(160deg,#dfe9ee,#aebfca); left:16px; top:36px; animation:cloudBob 4s ease-in-out infinite; }
+.wi-cloud::before{ content:''; position:absolute; width:34px; height:34px; border-radius:50%; background:inherit; top:-16px; left:8px; }
+.wi-cloud::after{ content:''; position:absolute; width:26px; height:26px; border-radius:50%; background:inherit; top:-10px; left:32px; }
+@keyframes cloudBob{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-6px);} }
+ 
+.wi-drop{ position:absolute; width:3px; height:16px; border-radius:2px; background:linear-gradient(to bottom,transparent,var(--accent-sky)); animation:dropFall 1s linear infinite; }
+.wi-bolt{ position:absolute; width:18px; height:26px; left:40px; top:52px; background:var(--accent-storm); clip-path:polygon(60% 0,20% 55%,45% 55%,30% 100%,85% 40%,55% 40%); animation:boltFlicker 1.6s ease-in-out infinite; }
+@keyframes boltFlicker{ 0%,100%{ opacity:0.9;} 50%{ opacity:0.35;} }
+@keyframes dropFall{ from{ transform:translateY(0); opacity:1;} to{ transform:translateY(26px); opacity:0;} }
+ 
+.wi-flake{ position:absolute; width:6px; height:6px; border-radius:50%; background:#fff; animation:flakeFall 2.4s linear infinite; }
+@keyframes flakeFall{ from{ transform:translateY(0) rotate(0);} to{ transform:translateY(30px) rotate(180deg);} }
+ 
+.condition{ font-size:16px; color:var(--text-lo); margin-top:10px; }
+ 
+.loading{ margin-top:12px; font-size:13px; color:var(--accent-sky); min-height:18px; }
+ 
+.datetime{ text-align:right; }
+.date-pill{
+  background:var(--glass); border:1px solid var(--glass-border); backdrop-filter:blur(14px);
+  border-radius:16px; padding:16px 20px; min-width:170px;
 }
-
-.condition{
-font-size:22px;
-margin-top:8px;
-}
-
-.datetime{
-text-align:right;
-font-size:22px;
-padding-top:10px;
-}
-
-.datetime small{
-display:block;
-margin-top:10px;
-font-size:15px;
-opacity:0.8;
-}
-
-/* WEATHER METRICS */
-
+.date-pill #dateText{ font-size:16px; font-weight:600; }
+.date-pill #timeText{ display:block; margin-top:8px; font-size:14px; color:var(--text-lo); font-family:var(--font-mono); }
+ 
+/* METRICS — 3D floating glass cards */
 .metrics{
-display:grid;
-grid-template-columns:repeat(4,1fr);
-gap:18px;
-margin-top:35px;
-max-width:900px;
+  display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-top:26px;
 }
-
 .metric-card{
-background:rgba(255,255,255,0.08);
-border:1px solid rgba(255,255,255,0.2);
-border-radius:16px;
-padding:20px;
-min-height:115px;
+  background:var(--glass); border:1px solid var(--glass-border); backdrop-filter:blur(14px);
+  border-radius:18px; padding:20px; min-height:108px;
+  transition:transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+  transform-style:preserve-3d;
 }
-
-.metric-card h3{
-font-size:30px;
-margin-top:15px;
+.metric-card:hover{
+  transform:translateY(-6px) rotateX(4deg);
+  box-shadow:0 18px 34px rgba(33,201,138,0.18);
+  border-color:rgba(33,201,138,0.4);
 }
-
-.metric-card p{
-margin-top:5px;
-opacity:0.8;
-}
-
+.metric-card .m-icon{ font-size:20px; }
+.metric-card h3{ font-family:var(--font-mono); font-size:26px; margin-top:12px; font-weight:500; }
+.metric-card p{ margin-top:4px; color:var(--text-lo); font-size:13px; }
+ 
 /* SUMMARY STRIP */
-
 .summary-strip{
-height:80px;
-background:white;
-display:grid;
-grid-template-columns:repeat(3,1fr);
-align-items:center;
-text-align:center;
-border-bottom:1px solid #dfe5eb;
+  margin:26px 56px 0; display:grid; grid-template-columns:repeat(3,1fr);
+  background:var(--glass); border:1px solid var(--glass-border); backdrop-filter:blur(14px);
+  border-radius:18px; padding:18px 0; text-align:center;
 }
-
-.summary-strip strong{
-font-size:28px;
-}
-
+.summary-strip div{ font-size:12.5px; color:var(--text-lo); }
+.summary-strip strong{ display:block; font-family:var(--font-mono); font-size:24px; color:var(--text-hi); margin-bottom:4px; font-weight:500; }
+ 
 /* CONTENT */
-
-.content{
-padding:35px 45px;
-}
-
-.section-title{
-font-size:28px;
-margin-bottom:20px;
-}
-
+.content{ padding:40px 56px 70px; }
+.section-title{ font-size:24px; margin-bottom:6px; }
+.section-sub{ color:var(--text-lo); font-size:14px; margin-bottom:22px; }
+ 
 /* FORECAST */
-
-.forecast-grid{
-display:grid;
-grid-template-columns:repeat(5,1fr);
-gap:20px;
-}
-
+.forecast-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:18px; }
 .forecast-card{
-background:white;
-border-radius:20px;
-padding:25px;
-text-align:center;
-box-shadow:0 4px 10px rgba(0,0,0,0.08);
+  background:var(--glass); border:1px solid var(--glass-border); backdrop-filter:blur(14px);
+  border-radius:20px; padding:24px 18px; text-align:center;
+  opacity:0; transform:translateY(18px);
+  animation:cardIn 0.7s ease forwards;
+  transition:transform 0.3s ease, box-shadow 0.3s ease;
 }
-
-.forecast-card h4{
-margin-bottom:18px;
-font-size:18px;
+.forecast-card:hover{ transform:translateY(-5px); box-shadow:0 16px 30px rgba(63,169,245,0.18); }
+.forecast-card:nth-child(1){ animation-delay:0.05s; }
+.forecast-card:nth-child(2){ animation-delay:0.18s; }
+.forecast-card:nth-child(3){ animation-delay:0.31s; }
+.forecast-card:nth-child(4){ animation-delay:0.44s; }
+.forecast-card:nth-child(5){ animation-delay:0.57s; }
+@keyframes cardIn{ to{ opacity:1; transform:translateY(0);} }
+ 
+.forecast-card h4{ font-size:14px; color:var(--text-lo); font-weight:500; margin-bottom:14px; letter-spacing:0.03em; }
+.forecast-icon{ font-size:30px; margin-bottom:10px; }
+.forecast-temp{ margin-top:14px; font-family:var(--font-mono); font-size:20px; font-weight:500; }
+.forecast-temp span{ font-size:14px; color:var(--text-lo); margin-left:6px; }
+.progress{ height:5px; background:rgba(255,255,255,0.08); border-radius:10px; margin-top:14px; overflow:hidden; }
+.progress-fill{ height:100%; background:linear-gradient(90deg,var(--accent-sky),var(--accent-eco)); border-radius:10px; }
+.rain-chance{ margin-top:8px; font-size:12px; color:var(--text-lo); }
+ 
+/* ECO INTELLIGENCE */
+.eco-section{ margin-top:52px; }
+.eco-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:18px; }
+.eco-card{
+  border-radius:20px; padding:28px; position:relative; overflow:hidden;
+  border:1px solid var(--glass-border);
+  background:var(--glass); backdrop-filter:blur(14px);
+  transition:transform 0.3s ease;
 }
-
-.forecast-icon{
-font-size:38px;
-margin-bottom:15px;
+.eco-card:hover{ transform:translateY(-4px); }
+.eco-card .badge{
+  position:absolute; top:20px; right:20px; padding:6px 12px; border-radius:20px;
+  font-size:11.5px; letter-spacing:0.03em; color:#04140e; font-weight:600;
 }
-
-.forecast-temp{
-margin-top:15px;
-font-size:24px;
-font-weight:bold;
+.eco-card.c-eco .badge{ background:var(--accent-eco); }
+.eco-card.c-sky .badge{ background:var(--accent-sky); }
+.eco-card.c-sun .badge{ background:var(--accent-sun); }
+.eco-card.c-storm .badge{ background:var(--accent-storm); }
+.eco-card .e-icon{ font-size:32px; }
+.eco-card h3{ font-size:20px; margin-top:16px; }
+.eco-card p{ margin-top:10px; font-size:14px; line-height:1.55; color:var(--text-lo); }
+ 
+/* CLOUD TECHNOLOGY */
+.cloud-section{ margin-top:52px; }
+.cloud-panel{
+  background:linear-gradient(135deg,rgba(63,169,245,0.10),rgba(33,201,138,0.06));
+  border:1px solid var(--glass-border); border-radius:22px; padding:34px 38px;
+  display:flex; gap:40px; flex-wrap:wrap; align-items:center;
 }
-
-.forecast-temp span{
-font-size:18px;
-color:#8a94a6;
-margin-left:8px;
+.cloud-copy{ flex:1; min-width:260px; }
+.cloud-copy h3{ font-size:22px; margin-bottom:10px; }
+.cloud-copy p{ color:var(--text-lo); font-size:14px; line-height:1.6; max-width:520px; }
+.stack-row{ display:flex; gap:14px; flex-wrap:wrap; margin-top:18px; }
+.stack-chip{
+  font-family:var(--font-mono); font-size:12.5px; padding:8px 14px; border-radius:10px;
+  background:rgba(255,255,255,0.06); border:1px solid var(--glass-border); color:var(--accent-sky);
 }
-
-.progress{
-height:6px;
-background:#edf1f7;
-border-radius:10px;
-margin-top:18px;
-overflow:hidden;
+.arch-diagram{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.arch-node{
+  font-family:var(--font-mono); font-size:12px; text-align:center; padding:14px 16px;
+  border-radius:14px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border);
+  min-width:96px;
 }
-
-.progress-fill{
-height:100%;
-background:#2f7df6;
-border-radius:10px;
-}
-
-/* VIBE SECTION */
-
-.vibe-section{
-margin-top:50px;
-}
-
-.vibe-subtitle{
-margin-bottom:20px;
-color:#536275;
-}
-
-.vibe-grid{
-display:grid;
-grid-template-columns:repeat(2,1fr);
-gap:20px;
-}
-
-.vibe-card{
-border-radius:18px;
-padding:30px;
-color:white;
-position:relative;
-min-height:170px;
-}
-
-.vibe-card h3{
-font-size:30px;
-margin-top:20px;
-}
-
-.vibe-card p{
-margin-top:15px;
-font-size:17px;
-line-height:1.5;
-}
-
-.badge{
-position:absolute;
-top:20px;
-right:20px;
-padding:8px 14px;
-border-radius:20px;
-background:rgba(255,255,255,0.25);
-font-size:13px;
-}
-
-.purple{
-background:linear-gradient(135deg,#635bff,#b018ff);
-}
-
-.orange{
-background:linear-gradient(135deg,#ff9800,#ff4d00);
-}
-
-.teal{
-background:linear-gradient(135deg,#09b5ad,#0288a8);
-}
-
-.pink{
-background:linear-gradient(135deg,#ff2c6d,#ff0080);
-}
-
+.arch-arrow{ color:var(--accent-eco); font-size:18px; }
+ 
 /* RESPONSIVE */
-
-@media(max-width:1100px){
-
-.forecast-grid{
-grid-template-columns:1fr;
+@media (max-width:1100px){
+  .forecast-grid{ grid-template-columns:repeat(2,1fr); }
+  .eco-grid{ grid-template-columns:1fr; }
+  .metrics{ grid-template-columns:repeat(2,1fr); }
+  .top-section{ flex-direction:column; }
+  .datetime{ align-self:flex-start; }
+  .search-box{ width:100%; }
+  .hero{ padding:30px 22px; }
+  .content{ padding:30px 22px 50px; }
+  .summary-strip{ margin:22px 22px 0; }
 }
-
-.vibe-grid{
-grid-template-columns:1fr;
+@media (max-width:640px){
+  .forecast-grid{ grid-template-columns:1fr 1fr; }
+  .temperature{ font-size:64px; }
+  .weather-icon{ width:70px; height:70px; }
 }
-
-.metrics{
-grid-template-columns:1fr;
-}
-
-.top-section{
-flex-direction:column;
-gap:20px;
-}
-
-.search-box{
-width:100%;
-}
-
-.hero{
-padding:30px;
-}
-
-}
-
-.loading{
-margin-top:15px;
-font-size:15px;
-}
-
 </style>
 </head>
-
+ 
 <body>
-
-<div class="app">
-
+ 
+<!-- ============================================================
+     WEATHER-REACTIVE SKY BACKGROUND (populated by JS particles)
+     ============================================================ -->
+<div class="sky-layer" id="skyLayer">
+  <div class="sky-glow"></div>
+</div>
+<div class="lightning-flash" id="lightningFlash"></div>
+ 
+<!-- ============================================================
+     CINEMATIC SPLASH INTRO
+     ============================================================ -->
+<div class="splash" id="splash">
+  <div class="orb-wrap" id="orbWrap">
+    <div class="orb-ring"></div>
+    <div class="orb-core"></div>
+    <!-- orb-particle elements are injected by JS with randomized converge paths -->
+  </div>
+  <div class="splash-text">
+    <div class="splash-line l1">EcoWeather Cloud</div>
+    <div class="splash-line l2">Intelligent Weather Monitoring Platform</div>
+    <div class="splash-line l3">Powered by Cloud Technology</div>
+    <div class="splash-line l4">Sustainable Weather Intelligence</div>
+  </div>
+</div>
+ 
+<div class="app" id="appShell">
+ 
 <!-- SIDEBAR -->
-
 <div class="sidebar">
-
-<div class="logo">☔</div>
-
-<div class="menu">
-
-<div class="menu-item active">
-<div class="icon">🌦️</div>
-<div>Weather</div>
+  <div class="logo-mini">☁️</div>
+  <div class="menu">
+    <div class="menu-item active"><div class="icon">🌦️</div><div>Weather</div></div>
+    <div class="menu-item"><div class="icon">📍</div><div>Locations</div></div>
+    <div class="menu-item"><div class="icon">📉</div><div>Carbon</div></div>
+    <div class="menu-item"><div class="icon">🌱</div><div>Eco Tips</div></div>
+  </div>
 </div>
-
-<div class="menu-item">
-<div class="icon">📍</div>
-<div>Locations</div>
-</div>
-
-<div class="menu-item">
-<div class="icon">📉</div>
-<div>Carbon Impact</div>
-</div>
-
-<div class="menu-item">
-<div class="icon">🌱</div>
-<div>Eco Tips</div>
-</div>
-
-</div>
-
-</div>
-
+ 
 <!-- MAIN -->
-
 <div class="main">
-
-<!-- HERO -->
-
-<section class="hero">
-
-<div class="search-container">
-
-<input
-type="text"
-class="search-box"
-id="city"
-placeholder="Search for a city or location..."
-onkeydown="handleEnter(event)"
->
-
+ 
+  <section class="hero">
+ 
+    <div class="search-container">
+      <input type="text" class="search-box" id="city" placeholder="Search for a city or location..." onkeydown="handleEnter(event)">
+    </div>
+ 
+    <div class="top-section">
+ 
+      <div class="current-card">
+        <div class="location" id="location">📍 London, United Kingdom</div>
+ 
+        <div class="temp-row">
+          <div class="temperature"><span id="temperature">12</span><sup>°</sup></div>
+ 
+          <div class="weather-icon" id="weatherIcon">
+            <!-- animated icon parts injected/toggled by JS based on condition -->
+          </div>
+        </div>
+ 
+        <div class="condition" id="condition">Bit grim out there, innit? 🌧️</div>
+        <div class="loading" id="loading"></div>
+      </div>
+ 
+      <div class="datetime">
+        <div class="date-pill">
+          <div id="dateText">Monday, Feb 19</div>
+          <small id="timeText">4:30 PM</small>
+        </div>
+      </div>
+ 
+    </div>
+ 
+    <div class="metrics">
+      <div class="metric-card"><div class="m-icon">💨</div><h3 id="wind">18</h3><p>km/h Wind</p></div>
+      <div class="metric-card"><div class="m-icon">💧</div><h3 id="humidity">82%</h3><p>Humidity</p></div>
+      <div class="metric-card"><div class="m-icon">👁️</div><h3 id="visibility">6km</h3><p>Visibility</p></div>
+      <div class="metric-card"><div class="m-icon">🌡️</div><h3 id="pressure">1009</h3><p>Pressure</p></div>
+    </div>
+ 
+  </section>
+ 
+  <section class="summary-strip">
+    <div><strong>↘ -1°</strong>vs Yesterday</div>
+    <div><strong>11°</strong>This Week Avg</div>
+    <div><strong>6/10</strong>Vibe Rating</div>
+  </section>
+ 
+  <section class="content">
+ 
+    <h2 class="section-title">5-Day Forecast</h2>
+    <p class="section-sub">A quick look at the week ahead</p>
+ 
+    <div class="forecast-grid">
+ 
+      <div class="forecast-card">
+        <h4>Tuesday</h4>
+        <div class="forecast-icon">🌧️</div>
+        <div>Rainy</div>
+        <div class="forecast-temp">13°<span>8°</span></div>
+        <div class="progress"><div class="progress-fill" style="width:75%"></div></div>
+        <div class="rain-chance">75% rain</div>
+      </div>
+ 
+      <div class="forecast-card">
+        <h4>Wednesday</h4>
+        <div class="forecast-icon">☁️</div>
+        <div>Cloudy</div>
+        <div class="forecast-temp">11°<span>7°</span></div>
+        <div class="progress"><div class="progress-fill" style="width:45%"></div></div>
+        <div class="rain-chance">45% rain</div>
+      </div>
+ 
+      <div class="forecast-card">
+        <h4>Thursday</h4>
+        <div class="forecast-icon">🌧️</div>
+        <div>Light Rain</div>
+        <div class="forecast-temp">14°<span>9°</span></div>
+        <div class="progress"><div class="progress-fill" style="width:60%"></div></div>
+        <div class="rain-chance">60% rain</div>
+      </div>
+ 
+      <div class="forecast-card">
+        <h4>Friday</h4>
+        <div class="forecast-icon">☁️</div>
+        <div>Cloudy</div>
+        <div class="forecast-temp">10°<span>6°</span></div>
+        <div class="progress"><div class="progress-fill" style="width:35%"></div></div>
+        <div class="rain-chance">35% rain</div>
+      </div>
+ 
+      <div class="forecast-card">
+        <h4>Saturday</h4>
+        <div class="forecast-icon">⛅</div>
+        <div>Partly Cloudy</div>
+        <div class="forecast-temp">12°<span>7°</span></div>
+        <div class="progress"><div class="progress-fill" style="width:20%"></div></div>
+        <div class="rain-chance">20% rain</div>
+      </div>
+ 
+    </div>
+ 
+    <!-- ECO INTELLIGENCE -->
+    <div class="eco-section">
+      <h2 class="section-title">EcoWeather Insights</h2>
+      <p class="section-sub">What today's weather means for your routine and your footprint</p>
+ 
+      <div class="eco-grid">
+ 
+        <div class="eco-card c-eco">
+          <div class="badge">Study Tip</div>
+          <div class="e-icon">📖</div>
+          <h3>Library Day</h3>
+          <p>Too cold and wet for outdoor studying. Perfect weather to grab that cozy library spot and save on heating at home.</p>
+        </div>
+ 
+        <div class="eco-card c-sun">
+          <div class="badge">Energy Saving</div>
+          <div class="e-icon">☕</div>
+          <h3>Skip the Costa</h3>
+          <p>Bring a thermos from home. Save on takeaway cups and cut your commute footprint at the same time.</p>
+        </div>
+ 
+        <div class="eco-card c-sky">
+          <div class="badge">What to Wear</div>
+          <div class="e-icon">👕</div>
+          <h3>Layer Up</h3>
+          <p>Hoodie plus a waterproof shell. Lecture halls run warm, but it's freezing the moment you step outside.</p>
+        </div>
+ 
+        <div class="eco-card c-storm">
+          <div class="badge">Travel</div>
+          <div class="e-icon">🚲</div>
+          <h3>Bus Over Bike Today</h3>
+          <p>Leave the bike at home and take public transport. Lower emissions than a car, and you'll stay dry for your 9am.</p>
+        </div>
+ 
+      </div>
+    </div>
+ 
+    <!-- CLOUD TECHNOLOGY -->
+    <div class="cloud-section">
+      <h2 class="section-title">Cloud Technology</h2>
+      <p class="section-sub">Powered by Cloud Infrastructure</p>
+ 
+      <div class="cloud-panel">
+        <div class="cloud-copy">
+          <h3>Serverless Weather Intelligence</h3>
+          <p>Every forecast on this page is served through a fully serverless pipeline — no servers to patch, no idle capacity, scaling automatically with demand while keeping the carbon footprint of the platform as low as the infrastructure allows.</p>
+          <div class="stack-row">
+            <div class="stack-chip">API Gateway</div>
+            <div class="stack-chip">AWS Lambda</div>
+            <div class="stack-chip">us-east-1</div>
+            <div class="stack-chip">REST API</div>
+          </div>
+        </div>
+        <div class="arch-diagram">
+          <div class="arch-node">Client</div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node">API Gateway</div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node">Lambda</div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node">Weather Data</div>
+        </div>
+      </div>
+    </div>
+ 
+  </section>
+ 
 </div>
-
-<div class="top-section">
-
-<div>
-
-<div class="location" id="location">📍 London, United Kingdom</div>
-
-<div class="temperature">
-<span id="temperature">12</span>°
+ 
 </div>
-
-<div class="condition" id="condition">
-Bit grim out there, innit? 🌧️
-</div>
-
-<div class="loading" id="loading"></div>
-
-</div>
-
-<div class="datetime">
-
-<div id="dateText">Monday, Feb 19</div>
-
-<small id="timeText">4:30 PM</small>
-
-</div>
-
-</div>
-
-<!-- METRICS -->
-
-<div class="metrics">
-
-<div class="metric-card">
-<div>💨</div>
-<h3 id="wind">18</h3>
-<p>km/h Wind</p>
-</div>
-
-<div class="metric-card">
-<div>💧</div>
-<h3 id="humidity">82%</h3>
-<p>Humidity</p>
-</div>
-
-<div class="metric-card">
-<div>👁️</div>
-<h3 id="visibility">6km</h3>
-<p>Visibility</p>
-</div>
-
-<div class="metric-card">
-<div>🌡️</div>
-<h3 id="pressure">1009</h3>
-<p>Pressure</p>
-</div>
-
-</div>
-
-</section>
-
-<!-- SUMMARY -->
-
-<section class="summary-strip">
-
-<div>
-<strong>↘ -1°</strong>
-vs Yesterday
-</div>
-
-<div>
-<strong>11°</strong>
-This Week Avg
-</div>
-
-<div>
-<strong>6/10</strong>
-Vibe Rating
-</div>
-
-</section>
-
-<!-- CONTENT -->
-
-<section class="content">
-
-<h2 class="section-title">5-Day Forecast</h2>
-
-<div class="forecast-grid">
-
-<div class="forecast-card">
-<h4>Tuesday</h4>
-<div class="forecast-icon">🌧️</div>
-<div>Rainy</div>
-<div class="forecast-temp">13° <span>8°</span></div>
-<div class="progress"><div class="progress-fill" style="width:75%"></div></div>
-<p>75% rain</p>
-</div>
-
-<div class="forecast-card">
-<h4>Wednesday</h4>
-<div class="forecast-icon">☁️</div>
-<div>Cloudy</div>
-<div class="forecast-temp">11° <span>7°</span></div>
-<div class="progress"><div class="progress-fill" style="width:45%"></div></div>
-<p>45% rain</p>
-</div>
-
-<div class="forecast-card">
-<h4>Thursday</h4>
-<div class="forecast-icon">🌧️</div>
-<div>Light Rain</div>
-<div class="forecast-temp">14° <span>9°</span></div>
-<div class="progress"><div class="progress-fill" style="width:60%"></div></div>
-<p>60% rain</p>
-</div>
-
-<div class="forecast-card">
-<h4>Friday</h4>
-<div class="forecast-icon">☁️</div>
-<div>Cloudy</div>
-<div class="forecast-temp">10° <span>6°</span></div>
-<div class="progress"><div class="progress-fill" style="width:35%"></div></div>
-<p>35% rain</p>
-</div>
-
-<div class="forecast-card">
-<h4>Saturday</h4>
-<div class="forecast-icon">⛅</div>
-<div>Partly Cloudy</div>
-<div class="forecast-temp">12° <span>7°</span></div>
-<div class="progress"><div class="progress-fill" style="width:20%"></div></div>
-<p>20% rain</p>
-</div>
-
-</div>
-
-<!-- VIBE SECTION -->
-
-<div class="vibe-section">
-
-<h2 class="section-title">Your Daily Vibe Check</h2>
-
-<p class="vibe-subtitle">
-What today's weather means for you 📚
-</p>
-
-<div class="vibe-grid">
-
-<div class="vibe-card purple">
-<div class="badge">Study Tip</div>
-<div style="font-size:40px;">📖</div>
-<h3>Library Day!</h3>
-<p>
-Too cold and wet for outdoor studying.
-Perfect weather to grab that cozy library spot you love ☕
-</p>
-</div>
-
-<div class="vibe-card orange">
-<div class="badge">Budget Tip</div>
-<div style="font-size:40px;">☕</div>
-<h3>Skip the Costa</h3>
-<p>
-Bring a thermos from home! Save £3.50 and stay warm on your commute 💰
-</p>
-</div>
-
-<div class="vibe-card teal">
-<div class="badge">What to Wear</div>
-<div style="font-size:40px;">👕</div>
-<h3>Layer Up Mate</h3>
-<p>
-Hoodie + waterproof jacket combo.
-Trust me, lecture halls get warm but it's freezing outside!
-</p>
-</div>
-
-<div class="vibe-card pink">
-<div class="badge">Commute</div>
-<div style="font-size:40px;">🚲</div>
-<h3>Bus > Bike Today</h3>
-<p>
-Leave the bike at home.
-You'll thank me later when you're not soaking wet in your 9am lecture 🚌
-</p>
-</div>
-
-</div>
-
-</div>
-
-</section>
-
-</div>
-
-</div>
-
+ 
 <script>
-
+/* ============================================================
+   BACKEND / DATA LOGIC — UNCHANGED FROM ORIGINAL APPLICATION
+   Do not alter API_URL, fetch logic, response parsing, or the
+   element IDs referenced below. Only presentation was redesigned.
+   ============================================================ */
+ 
 const API_URL = "https://uh1oewohei.execute-api.us-east-1.amazonaws.com/prod/weather";
-
+ 
 function updateDateTime(){
-
-const now = new Date();
-
-document.getElementById("dateText").innerText =
-now.toLocaleDateString("en-GB",{
-weekday:"long",
-month:"short",
-day:"numeric"
-});
-
-document.getElementById("timeText").innerText =
-now.toLocaleTimeString("en-GB",{
-hour:"2-digit",
-minute:"2-digit"
-});
-
+ 
+  const now = new Date();
+ 
+  document.getElementById("dateText").innerText =
+    now.toLocaleDateString("en-GB",{
+      weekday:"long",
+      month:"short",
+      day:"numeric"
+    });
+ 
+  document.getElementById("timeText").innerText =
+    now.toLocaleTimeString("en-GB",{
+      hour:"2-digit",
+      minute:"2-digit"
+    });
+ 
 }
-
+ 
 function handleEnter(event){
-
-if(event.key === "Enter"){
-getWeather();
+ 
+  if(event.key === "Enter"){
+    getWeather();
+  }
+ 
 }
-
-}
-
+ 
 async function getWeather(){
-
-const city =
-document.getElementById("city").value || "London";
-
-const loading =
-document.getElementById("loading");
-
-loading.innerText = "Fetching weather...";
-
-try{
-
-const response =
-await fetch(API_URL + "?city=" + city);
-
-const data = await response.json();
-
-console.log(data);
-
-if(data.error){
-
-loading.innerText = "❌ " + data.error;
-return;
-
+ 
+  const city =
+    document.getElementById("city").value || "London";
+ 
+  const loading =
+    document.getElementById("loading");
+ 
+  loading.innerText = "Fetching weather...";
+ 
+  try{
+ 
+    const response =
+      await fetch(API_URL + "?city=" + city);
+ 
+    const data = await response.json();
+ 
+    console.log(data);
+ 
+    if(data.error){
+ 
+      loading.innerText = "❌ " + data.error;
+      return;
+ 
+    }
+ 
+    loading.innerText = "";
+ 
+    document.getElementById("location").innerText =
+      "📍 " + data.city;
+ 
+    document.getElementById("temperature").innerText =
+      Math.round(data.temperature);
+ 
+    document.getElementById("condition").innerText =
+      data.condition;
+ 
+    /* Frontend-only enhancement: react the background + icon to the
+       real condition text returned by the API. Does not touch parsing above. */
+    applyWeatherTheme(data.condition);
+ 
+  }catch(error){
+ 
+    console.error(error);
+ 
+    loading.innerText =
+      "❌ Could not fetch weather";
+ 
+  }
+ 
 }
-
-loading.innerText = "";
-
-document.getElementById("location").innerText =
-"📍 " + data.city;
-
-document.getElementById("temperature").innerText =
-Math.round(data.temperature);
-
-document.getElementById("condition").innerText =
-data.condition;
-
-}catch(error){
-
-console.error(error);
-
-loading.innerText =
-"❌ Could not fetch weather";
-
+ 
+/* ============================================================
+   FRONTEND PRESENTATION LAYER — new, additive, no backend impact
+   ============================================================ */
+ 
+/* ---- Splash intro ---- */
+function initSplash(){
+  const orbWrap = document.getElementById("orbWrap");
+  const count = 26;
+  for(let i=0;i<count;i++){
+    const p = document.createElement("div");
+    p.className = "orb-particle";
+    const angle = (Math.PI*2*i)/count;
+    const startX = (Math.random()-0.5) * 400;
+    const startY = (Math.random()-0.5) * 400;
+    const radius = 78 + Math.random()*10;
+    const endX = Math.cos(angle) * radius;
+    const endY = Math.sin(angle) * radius;
+    p.style.setProperty("--sx", startX + "px");
+    p.style.setProperty("--sy", startY + "px");
+    p.style.setProperty("--ex", endX + "px");
+    p.style.setProperty("--ey", endY + "px");
+    p.style.animationDelay = (0.1 + Math.random()*0.5) + "s";
+    orbWrap.appendChild(p);
+  }
+ 
+  setTimeout(()=>{
+    document.getElementById("splash").classList.add("splash-hide");
+    document.getElementById("appShell").classList.add("app-visible");
+  }, 3400);
 }
-
+ 
+/* ---- Weather-reactive background + animated icon ---- */
+let particleInterval = null;
+let lightningInterval = null;
+ 
+function classifyCondition(text){
+  const t = (text || "").toLowerCase();
+  if(t.includes("storm") || t.includes("thunder")) return "storm";
+  if(t.includes("snow")) return "snow";
+  if(t.includes("rain") || t.includes("drizzle") || t.includes("🌧")) return "rain";
+  if(t.includes("sun") || t.includes("clear") || t.includes("☀")) return "sun";
+  return "cloud";
 }
-
+ 
+function applyWeatherTheme(conditionText){
+  const theme = classifyCondition(conditionText);
+  document.body.className = "theme-" + theme;
+  buildWeatherIcon(theme);
+  startParticles(theme);
+}
+ 
+function buildWeatherIcon(theme){
+  const icon = document.getElementById("weatherIcon");
+  icon.innerHTML = "";
+ 
+  if(theme === "sun"){
+    icon.innerHTML = '<div class="wi-sun-rays"></div><div class="wi-sun-core"></div>';
+  } else if(theme === "cloud"){
+    icon.innerHTML = '<div class="wi-cloud"></div>';
+  } else if(theme === "rain"){
+    icon.innerHTML = '<div class="wi-cloud"></div>';
+    for(let i=0;i<4;i++){
+      const d = document.createElement("div");
+      d.className = "wi-drop";
+      d.style.left = (18 + i*16) + "px";
+      d.style.top = "58px";
+      d.style.animationDelay = (i*0.2) + "s";
+      icon.appendChild(d);
+    }
+  } else if(theme === "storm"){
+    icon.innerHTML = '<div class="wi-cloud"></div><div class="wi-bolt"></div>';
+  } else if(theme === "snow"){
+    icon.innerHTML = '<div class="wi-cloud"></div>';
+    for(let i=0;i<5;i++){
+      const f = document.createElement("div");
+      f.className = "wi-flake";
+      f.style.left = (12 + i*14) + "px";
+      f.style.top = "56px";
+      f.style.animationDelay = (i*0.3) + "s";
+      icon.appendChild(f);
+    }
+  }
+}
+ 
+function startParticles(theme){
+  const sky = document.getElementById("skyLayer");
+ 
+  Array.from(sky.querySelectorAll(".sky-particle")).forEach(el => el.remove());
+  if(particleInterval) clearInterval(particleInterval);
+  if(lightningInterval) clearInterval(lightningInterval);
+ 
+  const spawn = () => {
+    const el = document.createElement("div");
+    el.className = "sky-particle";
+ 
+    if(theme === "rain" || theme === "storm"){
+      el.classList.add("p-rain");
+      el.style.left = Math.random()*100 + "vw";
+      el.style.animationDuration = (0.6 + Math.random()*0.5) + "s";
+    } else if(theme === "snow"){
+      el.classList.add("p-snow");
+      el.style.left = Math.random()*100 + "vw";
+      el.style.animationDuration = (4 + Math.random()*3) + "s";
+    } else if(theme === "sun"){
+      el.classList.add("p-sun");
+      el.style.left = Math.random()*100 + "vw";
+      el.style.top = Math.random()*80 + "vh";
+      el.style.animationDuration = (4 + Math.random()*3) + "s";
+    } else {
+      el.classList.add("p-cloud");
+      el.style.top = Math.random()*60 + "vh";
+      el.style.animationDuration = (28 + Math.random()*20) + "s";
+    }
+ 
+    sky.appendChild(el);
+    el.addEventListener("animationend", () => el.remove());
+  };
+ 
+  for(let i=0;i<18;i++){ setTimeout(spawn, i*80); }
+ 
+  const rate = (theme === "rain" || theme === "storm") ? 90 : (theme === "snow" ? 220 : 1400);
+  particleInterval = setInterval(spawn, rate);
+ 
+  if(theme === "storm"){
+    const flashEl = document.getElementById("lightningFlash");
+    lightningInterval = setInterval(()=>{
+      flashEl.classList.remove("flash");
+      void flashEl.offsetWidth;
+      flashEl.classList.add("flash");
+    }, 3200 + Math.random()*2800);
+  }
+}
+ 
+/* ---- Init ---- */
+document.body.classList.add("theme-rain");
+initSplash();
 updateDateTime();
 getWeather();
-
 </script>
-
+ 
 </body>
 </html>
