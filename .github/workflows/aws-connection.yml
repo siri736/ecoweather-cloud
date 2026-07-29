@@ -1,0 +1,156 @@
+name: EcoWeather Cloud - AWS Connection Pipeline
+
+
+on:
+
+  push:
+
+    branches:
+
+      - main
+
+  workflow_dispatch:
+
+
+
+jobs:
+
+
+# -----------------------------
+# Stage 1: Source Code Checkout
+# -----------------------------
+
+  checkout:
+
+    name: Checkout Source Code
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+    - name: Checkout Repository
+
+      uses: actions/checkout@v4
+
+
+
+# -----------------------------
+# Stage 2: AWS Authentication
+# -----------------------------
+
+
+  aws-authentication:
+
+
+    name: Authenticate With AWS
+
+
+    runs-on: ubuntu-latest
+
+
+    needs: checkout
+
+
+    steps:
+
+
+    - name: Configure AWS Credentials
+
+
+      uses: aws-actions/configure-aws-credentials@v4
+
+
+      with:
+
+
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+
+
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+
+        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+
+
+
+    - name: Verify AWS Identity
+
+
+      run: |
+
+        echo "Checking AWS connection..."
+
+        aws sts get-caller-identity
+
+
+
+# -----------------------------
+# Stage 3: AWS Environment Check
+# -----------------------------
+
+
+  aws-validation:
+
+
+    name: AWS Environment Validation
+
+
+    runs-on: ubuntu-latest
+
+
+    needs: aws-authentication
+
+
+    steps:
+
+
+    - name: Confirm AWS Access
+
+
+      run: |
+
+
+        echo "AWS authentication successful"
+
+        echo "Connected with AWS Student Account"
+
+
+
+# -----------------------------
+# Stage 4: Completion
+# -----------------------------
+
+
+  pipeline-status:
+
+
+    name: Pipeline Completion
+
+
+    runs-on: ubuntu-latest
+
+
+    needs: aws-validation
+
+
+    steps:
+
+
+    - name: Successful Connection
+
+
+      run: |
+
+
+        echo "================================"
+
+        echo "EcoWeather Cloud"
+
+        echo "GitHub connected with AWS"
+
+        echo "No application changes performed"
+
+        echo "Pipeline completed successfully"
+
+        echo "================================"
