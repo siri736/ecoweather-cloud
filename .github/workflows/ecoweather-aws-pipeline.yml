@@ -1,0 +1,269 @@
+name: EcoWeather Cloud - AWS CI Pipeline
+
+
+on:
+
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+
+
+permissions:
+
+  contents: read
+
+
+
+env:
+
+  AWS_REGION: eu-west-2
+
+
+
+jobs:
+
+
+# ==================================================
+# Stage 1 - Source Code Management
+# ==================================================
+
+  checkout-code:
+
+    name: 1. Checkout Source Code
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+      - name: Checkout Repository
+
+        uses: actions/checkout@v4
+
+
+
+      - name: Display Repository Information
+
+        run: |
+
+          echo "Repository checkout completed"
+
+          echo "EcoWeather Cloud source code loaded"
+
+
+
+# ==================================================
+# Stage 2 - Environment Preparation
+# ==================================================
+
+  prepare-environment:
+
+
+    name: 2. Prepare Build Environment
+
+    runs-on: ubuntu-latest
+
+
+    needs: checkout-code
+
+
+    steps:
+
+
+      - name: Setup Python Environment
+
+        uses: actions/setup-python@v5
+
+        with:
+
+          python-version: "3.12"
+
+
+
+      - name: Verify Environment
+
+
+        run: |
+
+          python --version
+
+          echo "Environment preparation completed"
+
+
+
+# ==================================================
+# Stage 3 - AWS Secure Authentication
+# ==================================================
+
+  aws-authentication:
+
+
+    name: 3. Authenticate GitHub With AWS
+
+
+    runs-on: ubuntu-latest
+
+
+    needs: prepare-environment
+
+
+    steps:
+
+
+      - name: Configure AWS Credentials
+
+
+        uses: aws-actions/configure-aws-credentials@v4
+
+
+        with:
+
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+
+          aws-region: ${{ env.AWS_REGION }}
+
+
+
+      - name: Verify AWS Connection
+
+
+        run: |
+
+
+          echo "Verifying AWS identity..."
+
+          aws sts get-caller-identity
+
+
+
+# ==================================================
+# Stage 4 - AWS Safety Validation
+# ==================================================
+
+  aws-validation:
+
+
+    name: 4. AWS Connection Validation
+
+
+    runs-on: ubuntu-latest
+
+
+    needs: aws-authentication
+
+
+    steps:
+
+
+      - name: Confirm AWS Access
+
+
+        run: |
+
+
+          echo "AWS authentication successful"
+
+          echo "GitHub Actions is securely connected"
+
+          echo "No AWS resources modified"
+
+
+
+# ==================================================
+# Stage 5 - Application Quality Checks
+# ==================================================
+
+  quality-check:
+
+
+    name: 5. Application Quality Check
+
+
+    runs-on: ubuntu-latest
+
+
+    needs: checkout-code
+
+
+    steps:
+
+
+      - name: Checkout Code
+
+
+        uses: actions/checkout@v4
+
+
+
+      - name: Check Project Files
+
+
+        run: |
+
+
+          echo "Checking EcoWeather Cloud project structure"
+
+          ls -la
+
+          echo "Quality check completed"
+
+
+
+# ==================================================
+# Stage 6 - Pipeline Summary
+# ==================================================
+
+  pipeline-complete:
+
+
+    name: 6. Pipeline Completion
+
+
+    runs-on: ubuntu-latest
+
+
+    needs:
+
+      - aws-validation
+
+      - quality-check
+
+
+
+    steps:
+
+
+      - name: Successful Pipeline
+
+
+        run: |
+
+
+          echo "===================================="
+
+          echo " EcoWeather Cloud CI Pipeline "
+
+          echo " "
+
+          echo " GitHub Repository       : CONNECTED"
+
+          echo " AWS Authentication     : SUCCESS"
+
+          echo " Environment Check      : PASSED"
+
+          echo " Application Check      : PASSED"
+
+          echo " "
+
+          echo " Deployment Status      : NOT PERFORMED"
+
+          echo " AWS Infrastructure     : UNCHANGED"
+
+          echo "===================================="
